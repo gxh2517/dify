@@ -1,55 +1,48 @@
 # Please do not directly edit this file. Instead, modify the .env variables related to NGINX configuration.
 
 server {
-    listen ${NGINX_PORT};
+    listen      ${NGINX_PORT};
     server_name ${NGINX_SERVER_NAME};
 
-    location /console/api {
-      proxy_pass http://api:5001;
-      include proxy.conf;
-    }
+    # 1. 后端 API 转发 (源码部署运行在 127.0.0.1:5001)
+    # 涵盖 console/api, api, v1, files, mcp, triggers
+    location ~ ^/(console/api|api|v1|files|mcp|triggers) {
+        proxy_pass http://172.17.0.1:5001;
 
-    location /api {
-      proxy_pass http://api:5001;
-      include proxy.conf;
-    }
+        # 必须包含以下四行，确保后端能正确识别域名和协议
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme; # 告诉后端这是 HTTPS 请求
 
-    location /v1 {
-      proxy_pass http://api:5001;
-      include proxy.conf;
-    }
-
-    location /files {
-      proxy_pass http://api:5001;
-      include proxy.conf;
+        include proxy.conf;
     }
 
     location /explore {
-      proxy_pass http://web:3000;
-      include proxy.conf;
+        proxy_pass       http://172.17.0.1:3000;
+        proxy_set_header Host                   $host;
+        proxy_set_header X-Forwarded-Proto      $scheme;
+        include          proxy.conf;
     }
 
     location /e/ {
-      proxy_pass http://plugin_daemon:5002;
-      proxy_set_header Dify-Hook-Url $scheme://$host$request_uri;
-      include proxy.conf;
+        proxy_pass       http://172.17.0.1:5002;
+        proxy_set_header Dify-Hook-Url          $scheme://$host$request_uri;
+        include          proxy.conf;
+    }
+    # ▼ 升级版黄金规则：动态捕获文件夹名和图片名 ▼
+    location ~ /images/(.*)$ {
+        # $1 会自动提取出图片的文件名（例如 xxx.jpg），并去我们的物理仓库里找
+        alias      /usr/share/nginx/html/images/$1;
+        expires    30d;
+        add_header Cache-Control                   "public, no-transform";
     }
 
     location / {
-      proxy_pass http://web:3000;
-      include proxy.conf;
+        proxy_pass http://172.17.0.1:3000;
+        include    proxy.conf;
     }
 
-    location /mcp {
-      proxy_pass http://api:5001;
-      include proxy.conf;
-    }
-
-    location /triggers {
-      proxy_pass http://api:5001;
-      include proxy.conf;
-    }
-    
     # placeholder for acme challenge location
     ${ACME_CHALLENGE_LOCATION}
 
