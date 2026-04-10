@@ -83,7 +83,7 @@ const Header: FC<IHeaderProps> = ({
 
   if (!isMobile) {
     return (
-      <div className="flex h-14 shrink-0 items-center justify-end p-3">
+      <div className="flex !h-7 !max-h-7 overflow-hidden shrink-0 items-center justify-end p-1">
         <div className="flex items-center gap-1">
           {/* powered by */}
           <div className="shrink-0">
@@ -113,7 +113,7 @@ const Header: FC<IHeaderProps> = ({
               <Tooltip
                 popupContent={expanded ? t('chat.collapse', { ns: 'share' }) : t('chat.expand', { ns: 'share' })}
               >
-                <ActionButton size="l" onClick={handleToggleExpand} data-testid="expand-button">
+                <ActionButton size="s" onClick={handleToggleExpand} data-testid="expand-button">
                   {
                     expanded
                       ? <div className="i-ri-collapse-diagonal-2-line h-[18px] w-[18px]" />
@@ -127,7 +127,7 @@ const Header: FC<IHeaderProps> = ({
             <Tooltip
               popupContent={t('chat.resetChat', { ns: 'share' })}
             >
-              <ActionButton size="l" onClick={onCreateNewChat} data-testid="reset-chat-button">
+              <ActionButton size="s" onClick={onCreateNewChat} data-testid="reset-chat-button">
                 <div className="i-ri-reset-left-line h-[18px] w-[18px]" />
               </ActionButton>
             </Tooltip>
@@ -142,7 +142,7 @@ const Header: FC<IHeaderProps> = ({
 
   return (
     <div
-      className={cn('flex h-14 shrink-0 items-center justify-between rounded-t-2xl px-3')}
+      className={cn('flex !h-7 !max-h-7 overflow-hidden shrink-0 items-center justify-between rounded-t-2xl px-1')}
       style={CssTransform(theme?.headerBorderBottomStyle ?? '')}
     >
       <div className="flex grow items-center space-x-3">
@@ -160,7 +160,7 @@ const Header: FC<IHeaderProps> = ({
             <Tooltip
               popupContent={expanded ? t('chat.collapse', { ns: 'share' }) : t('chat.expand', { ns: 'share' })}
             >
-              <ActionButton size="l" onClick={handleToggleExpand} data-testid="mobile-expand-button">
+              <ActionButton size="s" onClick={handleToggleExpand} data-testid="mobile-expand-button">
                 {
                   expanded
                     ? <div className={cn('i-ri-collapse-diagonal-2-line h-[18px] w-[18px]', theme?.colorPathOnHeader)} />
@@ -174,7 +174,7 @@ const Header: FC<IHeaderProps> = ({
           <Tooltip
             popupContent={t('chat.resetChat', { ns: 'share' })}
           >
-            <ActionButton size="l" onClick={onCreateNewChat} data-testid="mobile-reset-chat-button">
+            <ActionButton size="s" onClick={onCreateNewChat} data-testid="mobile-reset-chat-button">
               <div className={cn('i-ri-reset-left-line h-[18px] w-[18px]', theme?.colorPathOnHeader)} />
             </ActionButton>
           </Tooltip>
