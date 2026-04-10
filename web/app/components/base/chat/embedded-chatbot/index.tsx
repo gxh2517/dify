@@ -64,7 +64,9 @@ const Chatbot = () => {
           theme={themeBuilder?.theme}
           onCreateNewChat={handleNewConversation}
         />
-        <div className={cn('flex grow flex-col overflow-y-auto', isMobile && 'm-[0.5px] !h-[calc(100vh_-_3rem)] rounded-2xl bg-chatbot-bg')}>
+
+        {/* 【修改 1】：【优化】去掉了固定的高度限制，利用 flex grow 自动填满除去头部外的所有空间 */}
+        <div className={cn('flex grow flex-col overflow-y-auto', isMobile && 'm-[0.5px] rounded-2xl bg-chatbot-bg')}>
           {appChatListDataLoading && (
             <Loading type="app" />
           )}
@@ -73,7 +75,9 @@ const Chatbot = () => {
           )}
         </div>
       </div>
-      {/* powered by */}
+
+      {/* 【修改 2】：完全注释掉 powered by 底部水印 */}
+      {/*
       {isMobile && (
         <div className="flex h-[60px] shrink-0 items-center pl-2">
           {!appData?.custom_config?.remove_webapp_brand && (
@@ -93,6 +97,7 @@ const Chatbot = () => {
           )}
         </div>
       )}
+      */}
     </div>
   )
 }
