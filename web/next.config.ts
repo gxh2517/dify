@@ -36,7 +36,7 @@ const nextConfig: NextConfig = {
     removeConsole: isDev ? false : { exclude: ['warn', 'error'] },
   },
   experimental: {
-    turbopackFileSystemCacheForDev: false,
+    turbopackFileSystemCacheForDev: true,
   },
 }
 
