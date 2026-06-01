@@ -65,7 +65,6 @@ const Chatbot = () => {
           theme={themeBuilder?.theme}
           onCreateNewChat={handleNewConversation}
         />
-        <div className={cn('flex grow flex-col overflow-y-auto', isMobile && 'm-[0.5px] h-[calc(100vh-3rem)]! rounded-2xl bg-chatbot-bg')}>
 
         {/* 【修改 1】：【优化】去掉了固定的高度限制，利用 flex grow 自动填满除去头部外的所有空间 */}
         <div className={cn('flex grow flex-col overflow-y-auto', isMobile && 'm-[0.5px] rounded-2xl bg-chatbot-bg')}>
