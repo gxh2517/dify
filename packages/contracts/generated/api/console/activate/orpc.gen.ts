@@ -2,7 +2,6 @@
 
 import { oc } from '@orpc/contract'
 import * as z from 'zod'
-
 import {
   zGetActivateCheckQuery,
   zGetActivateCheckResponse,
@@ -12,16 +11,10 @@ import {
 
 /**
  * Check if activation token is valid
- *
- * Generated contract types may be inaccurate because backend OpenAPI annotations are incomplete. Do not migrate callers until the generated contract is accurate.
- *
- * @deprecated
  */
 export const get = oc
   .route({
-    deprecated: true,
-    description:
-      'Check if activation token is valid\n\nGenerated contract types may be inaccurate because backend OpenAPI annotations are incomplete. Do not migrate callers until the generated contract is accurate.',
+    description: 'Check if activation token is valid',
     inputStructure: 'detailed',
     method: 'GET',
     operationId: 'getActivateCheck',
@@ -36,15 +29,22 @@ export const check = {
 }
 
 /**
+ * Accept an invitation without letting an existing session act for another account
+ *
  * Activate account with invitation token
+ * Token-only activation remains available for legacy clients. When the request already
+ * carries a console session, that session must belong to the account encoded in the
+ * invitation before the token is consumed or tenant membership is changed.
  */
 export const post = oc
   .route({
-    description: 'Activate account with invitation token',
+    description:
+      'Activate account with invitation token\nToken-only activation remains available for legacy clients. When the request already\ncarries a console session, that session must belong to the account encoded in the\ninvitation before the token is consumed or tenant membership is changed.',
     inputStructure: 'detailed',
     method: 'POST',
     operationId: 'postActivate',
     path: '/activate',
+    summary: 'Accept an invitation without letting an existing session act for another account',
     tags: ['console'],
   })
   .input(z.object({ body: zPostActivateBody }))

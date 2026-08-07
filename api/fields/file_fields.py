@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import field_validator
+from pydantic import ConfigDict, field_validator
 
 from fields.base import ResponseModel
 from libs.helper import to_timestamp
@@ -10,19 +10,22 @@ from libs.helper import to_timestamp
 
 class UploadConfig(ResponseModel):
     file_size_limit: int
+    knowledge_file_size_limit: int
     batch_count_limit: int
-    file_upload_limit: int | None = None
+    file_upload_limit: int
     image_file_size_limit: int
     video_file_size_limit: int
     audio_file_size_limit: int
+    skill_file_size_limit: int
     workflow_file_upload_limit: int
     image_file_batch_limit: int
     single_chunk_attachment_limit: int
-    attachment_image_file_size_limit: int | None = None
+    attachment_image_file_size_limit: int
 
 
 class FileResponse(ResponseModel):
     id: str
+    reference: str | None = None
     name: str
     size: int
     extension: str | None = None
@@ -49,6 +52,8 @@ class RemoteFileInfo(ResponseModel):
 
 
 class FileWithSignedUrl(ResponseModel):
+    model_config = ConfigDict(json_schema_serialization_defaults_required=True)
+
     id: str
     name: str
     size: int

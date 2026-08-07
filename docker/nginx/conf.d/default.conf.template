@@ -30,16 +30,14 @@ server {
 
 
     location /explore {
-        proxy_pass       http://172.17.0.1:3000;
-        proxy_set_header Host                   $host;
-        proxy_set_header X-Forwarded-Proto      $scheme;
-        include          proxy.conf;
+      proxy_pass http://172.17.0.1:3000;
+      include proxy.conf;
     }
 
     location /e/ {
-        proxy_pass       http://172.17.0.1:5002;
-        proxy_set_header Dify-Hook-Url          $scheme://$host$request_uri;
-        include          proxy.conf;
+      proxy_pass http://plugin_daemon:5002;
+      proxy_set_header Dify-Hook-Url $scheme://$host$request_uri;
+      include proxy.conf;
     }
     # ▼ 升级版黄金规则：动态捕获文件夹名和图片名 ▼
     location ~ /images/(.*)$ {
@@ -50,8 +48,8 @@ server {
     }
 
     location / {
-        proxy_pass http://172.17.0.1:3000;
-        include    proxy.conf;
+      proxy_pass http://172.17.0.1:3000;
+      include proxy.conf;
     }
 
     # placeholder for acme challenge location
