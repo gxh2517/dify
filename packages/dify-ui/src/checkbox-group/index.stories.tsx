@@ -1,18 +1,19 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
-import { Field } from '@base-ui/react/field'
-import { Fieldset } from '@base-ui/react/fieldset'
-import { useId, useState } from 'react'
+import * as React from 'react'
 import { CheckboxGroup } from '.'
 import { Checkbox } from '../checkbox'
+import { Field, FieldDescription, FieldItem, FieldLabel } from '../field'
+import { Fieldset, FieldsetLegend } from '../fieldset'
 
 const meta = {
-  title: 'Base/UI/CheckboxGroup',
+  title: 'Base/Form/CheckboxGroup',
   component: CheckboxGroup,
   parameters: {
     layout: 'centered',
     docs: {
       description: {
-        component: 'CheckboxGroup primitive built on Base UI. It owns multi-checkbox array state, allValues, and parent checkbox semantics. Import from `@langgenius/dify-ui/checkbox-group` and compose with `Checkbox` from `@langgenius/dify-ui/checkbox`.',
+        component:
+          'CheckboxGroup primitive built on Base UI. It owns multi-checkbox array state, allValues, and parent checkbox semantics. Import from `@langgenius/dify-ui/checkbox-group` and compose with `Checkbox` from `@langgenius/dify-ui/checkbox`.',
       },
     },
   },
@@ -24,8 +25,8 @@ type Story = StoryObj<typeof meta>
 
 function DocumentSelectionDemo() {
   const documentIds = ['doc-1', 'doc-2', 'doc-3']
-  const [selected, setSelected] = useState<string[]>(['doc-1'])
-  const groupLabelId = useId()
+  const [selected, setSelected] = React.useState<string[]>(['doc-1'])
+  const groupLabelId = React.useId()
 
   return (
     <CheckboxGroup
@@ -35,7 +36,10 @@ function DocumentSelectionDemo() {
       allValues={documentIds}
       className="flex flex-col gap-3"
     >
-      <label id={groupLabelId} className="flex items-center gap-2 system-sm-semibold-uppercase text-text-secondary">
+      <label
+        id={groupLabelId}
+        className="flex items-center gap-2 system-sm-semibold-uppercase text-text-secondary"
+      >
         <Checkbox parent />
         Current page documents
       </label>
@@ -44,8 +48,11 @@ function DocumentSelectionDemo() {
           { id: 'doc-1', name: 'onboarding-guide.pdf' },
           { id: 'doc-2', name: 'pricing-faq.md' },
           { id: 'doc-3', name: 'release-notes.txt' },
-        ].map(document => (
-          <label key={document.id} className="flex items-center gap-2 system-sm-medium text-text-secondary">
+        ].map((document) => (
+          <label
+            key={document.id}
+            className="flex items-center gap-2 system-sm-medium text-text-secondary"
+          >
             <Checkbox value={document.id} />
             {document.name}
           </label>
@@ -60,7 +67,8 @@ export const DocumentSelection: Story = {
   parameters: {
     docs: {
       description: {
-        story: 'Matches Dify table/list selection patterns such as documents, segments, annotations, and install bundle items: CheckboxGroup owns the selected ID array, allValues defines the current selectable page, and the parent checkbox provides select-all plus mixed state.',
+        story:
+          'Matches Dify table/list selection patterns such as documents, segments, annotations, and install bundle items: CheckboxGroup owns the selected ID array, allValues defines the current selectable page, and the parent checkbox provides select-all plus mixed state.',
       },
     },
   },
@@ -72,35 +80,36 @@ function DynamicFormFieldDemo() {
     { value: 'pdf', label: 'PDF' },
     { value: 'html', label: 'HTML' },
   ]
-  const [selected, setSelected] = useState<string[]>(['markdown'])
+  const [selected, setSelected] = React.useState<string[]>(['markdown'])
 
   return (
-    <Field.Root name="allowed_file_types" className="flex w-80 flex-col gap-2">
-      <Field.Description className="body-xs-regular text-text-tertiary">
-        This mirrors Dify dynamic form fields where checkbox options are controlled by schema and persisted as a string array.
-      </Field.Description>
-      <Fieldset.Root
-        render={(
+    <Field name="allowed_file_types" className="flex w-80 flex-col gap-2">
+      <FieldDescription className="body-xs-regular text-text-tertiary">
+        This mirrors Dify dynamic form fields where checkbox options are controlled by schema and
+        persisted as a string array.
+      </FieldDescription>
+      <Fieldset
+        render={
           <CheckboxGroup
             value={selected}
             onValueChange={setSelected}
             className="flex flex-col gap-2 rounded-lg border border-components-panel-border bg-components-panel-bg p-3"
           />
-        )}
+        }
       >
-        <Fieldset.Legend className="system-sm-medium text-text-secondary">
+        <FieldsetLegend className="system-sm-medium text-text-secondary">
           Allowed file types
-        </Fieldset.Legend>
-        {options.map(option => (
-          <Field.Item key={option.value}>
-            <Field.Label className="flex items-center gap-2 system-sm-medium text-text-secondary">
+        </FieldsetLegend>
+        {options.map((option) => (
+          <FieldItem key={option.value}>
+            <FieldLabel className="flex items-center gap-2 system-sm-medium text-text-secondary">
               <Checkbox value={option.value} />
               {option.label}
-            </Field.Label>
-          </Field.Item>
+            </FieldLabel>
+          </FieldItem>
         ))}
-      </Fieldset.Root>
-    </Field.Root>
+      </Fieldset>
+    </Field>
   )
 }
 
@@ -109,7 +118,8 @@ export const DynamicFormField: Story = {
   parameters: {
     docs: {
       description: {
-        story: 'Matches Dify checkbox-list form usage in workflow node forms and base form rendering. Field and Fieldset provide group labeling; CheckboxGroup owns controlled array state.',
+        story:
+          'Matches Dify checkbox-list form usage in workflow node forms and base form rendering. Field and Fieldset provide group labeling; CheckboxGroup owns controlled array state.',
       },
     },
   },

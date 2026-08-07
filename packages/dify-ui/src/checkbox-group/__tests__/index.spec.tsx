@@ -1,16 +1,14 @@
-import { Field } from '@base-ui/react/field'
-import { Fieldset } from '@base-ui/react/fieldset'
-import { useState } from 'react'
+import * as React from 'react'
 import { render } from 'vitest-browser-react'
 import { Checkbox } from '../../checkbox'
+import { Field, FieldItem, FieldLabel } from '../../field'
+import { Fieldset, FieldsetLegend } from '../../fieldset'
 import { CheckboxGroup } from '../index'
-
-const asHTMLElement = (element: HTMLElement | SVGElement) => element as HTMLElement
 
 describe('CheckboxGroup', () => {
   it('should manage selected values and parent mixed state', async () => {
     function PermissionsDemo() {
-      const [value, setValue] = useState(['read'])
+      const [value, setValue] = React.useState(['read'])
 
       return (
         <CheckboxGroup value={value} onValueChange={setValue} allValues={['read', 'write']}>
@@ -35,7 +33,7 @@ describe('CheckboxGroup', () => {
     await expect.element(parent).toHaveAttribute('data-indeterminate', '')
     await expect.element(write).toHaveAttribute('aria-checked', 'false')
 
-    asHTMLElement(parent.element()).click()
+    await parent.click()
 
     await vi.waitFor(async () => {
       await expect.element(parent).toHaveAttribute('aria-checked', 'true')
@@ -43,32 +41,32 @@ describe('CheckboxGroup', () => {
     })
   })
 
-  it('should compose with Base UI Field and Fieldset without losing labels', async () => {
+  it('should compose with Dify UI Field and Fieldset without losing labels', async () => {
     const onValueChange = vi.fn()
     const screen = await render(
-      <Field.Root name="features">
-        <Fieldset.Root render={<CheckboxGroup value={['search']} onValueChange={onValueChange} />}>
-          <Fieldset.Legend>Features</Fieldset.Legend>
-          <Field.Item>
-            <Field.Label>
+      <Field name="features">
+        <Fieldset render={<CheckboxGroup value={['search']} onValueChange={onValueChange} />}>
+          <FieldsetLegend>Features</FieldsetLegend>
+          <FieldItem>
+            <FieldLabel>
               <Checkbox value="search" />
               Search
-            </Field.Label>
-          </Field.Item>
-          <Field.Item>
-            <Field.Label>
+            </FieldLabel>
+          </FieldItem>
+          <FieldItem>
+            <FieldLabel>
               <Checkbox value="analytics" />
               Analytics
-            </Field.Label>
-          </Field.Item>
-        </Fieldset.Root>
-      </Field.Root>,
+            </FieldLabel>
+          </FieldItem>
+        </Fieldset>
+      </Field>,
     )
 
     const analytics = screen.getByRole('checkbox', { name: 'Analytics' })
     await expect.element(analytics).toHaveAttribute('aria-checked', 'false')
 
-    asHTMLElement(analytics.element()).click()
+    await analytics.click()
 
     expect(onValueChange).toHaveBeenCalledTimes(1)
     expect(onValueChange.mock.calls[0]?.[0]).toEqual(['search', 'analytics'])

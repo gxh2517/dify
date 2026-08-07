@@ -10,13 +10,13 @@ import uuid
 from collections.abc import Callable, Generator, Mapping
 from datetime import datetime
 from hashlib import sha256
-from typing import TYPE_CHECKING, Annotated, Any, Protocol, cast, overload
+from typing import TYPE_CHECKING, Annotated, Any, Protocol, cast, overload, override
 from uuid import UUID
 from zoneinfo import available_timezones
 
-from flask import Response, stream_with_context
+from flask import Request, Response, stream_with_context
 from flask_restx import fields
-from pydantic import BaseModel, TypeAdapter
+from pydantic import BaseModel, ConfigDict, TypeAdapter, with_config
 from pydantic.functional_validators import AfterValidator
 from typing_extensions import TypedDict
 
@@ -33,13 +33,29 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+@with_config(ConfigDict(extra="allow"))
 class _TokenData(TypedDict, total=False):
+    """Shared baseline token payload.
+
+    `extra='allow'` keeps TokenManager from silently stripping business-
+    specific metadata keys while still validating the common auth fields.
+    Business flows that need stronger guarantees should validate again at
+    their own boundary with a dedicated Pydantic model.
+
+    For the change-email flow specifically, `email_change_phase` is the
+    discriminator used by `services.entities.auth_entities.ChangeEmailTokenData`.
+    It is declared here so the shared token adapter can still provide baseline
+    validation for the state-machine key without taking over the full business
+    model.
+    """
+
     account_id: str | None
     email: str
     token_type: str
     code: str
     old_email: str
     phase: str
+    email_change_phase: str
 
 
 _token_data_adapter: TypeAdapter[_TokenData] = TypeAdapter(_TokenData)
@@ -112,6 +128,11 @@ def run(script):
 
 
 class AppIconUrlField(fields.Raw):
+    @override
+    def schema(self) -> dict[str, object]:
+        return {"type": "string", "nullable": True}
+
+    @override
     def output(self, key, obj, **kwargs):
         if obj is None:
             return None
@@ -146,24 +167,22 @@ def build_avatar_url(avatar: str | None) -> str | None:
     return file_helpers.get_signed_file_url(avatar)
 
 
-class AvatarUrlField(fields.Raw):
-    def output(self, key, obj, **kwargs):
-        if obj is None:
-            return None
-
-        from models import Account
-
-        if isinstance(obj, Account) and obj.avatar is not None:
-            return build_avatar_url(obj.avatar)
-        return None
-
-
 class TimestampField(fields.Raw):
+    @override
+    def schema(self) -> dict[str, object]:
+        return {"type": "integer", "format": "int64"}
+
+    @override
     def format(self, value) -> int:
         return int(value.timestamp())
 
 
 class OptionalTimestampField(fields.Raw):
+    @override
+    def schema(self) -> dict[str, object]:
+        return {"type": "integer", "format": "int64", "nullable": True}
+
+    @override
     def format(self, value) -> int | None:
         if value is None:
             return None
@@ -202,8 +221,11 @@ def current_timestamp() -> int:
 def email(email):
     # Define a regex pattern for email addresses
     pattern = r"^[\w\.!#$%&'*+\-/=?^_`{|}~]+@([\w-]+\.)+[\w-]{2,}$"
-    # Check if the email matches the pattern
-    if re.match(pattern, email) is not None:
+    # Use re.fullmatch instead of re.match to reject trailing newlines.
+    # In Python, '$' matches at end-of-string OR just before a trailing newline,
+    # so re.match accepts "user@example.com\n". re.fullmatch requires the entire
+    # string to match, closing the mail header-injection vector. (#39234)
+    if re.fullmatch(pattern, email) is not None:
         return email
 
     error = f"{email} is not a valid email."
@@ -253,9 +275,25 @@ def parse_uuid_str_or_none(value: str | None) -> str | None:
 UUIDStrOrEmpty = Annotated[str, AfterValidator(normalize_uuid)]
 
 
+def _strict_uuid(value: str | UUID) -> str:
+    if not value:
+        raise ValueError("must be a non-empty valid UUID")
+    try:
+        return uuid_value(value)
+    except ValueError as exc:
+        raise ValueError("must be a valid UUID") from exc
+
+
+UUIDStr = Annotated[str, AfterValidator(_strict_uuid)]
+
+
 def alphanumeric(value: str):
     # check if the value is alphanumeric and underlined
-    if re.match(r"^[a-zA-Z0-9_]+$", value):
+    # Use re.fullmatch instead of re.match to reject trailing newlines.
+    # In Python, '$' matches at end-of-string OR just before a trailing newline,
+    # so re.match accepts "tool_name\n". re.fullmatch requires the entire
+    # string to match. Regression for #39666 (sibling of #39234 / #39548).
+    if re.fullmatch(r"^[a-zA-Z0-9_]+$", value):
         return value
 
     raise ValueError(f"{value} is not a valid alphanumeric value")
@@ -353,11 +391,11 @@ def generate_string(n):
     return result
 
 
-def extract_remote_ip(request) -> str:
+def extract_remote_ip(request: Request) -> str:
     if request.headers.get("CF-Connecting-IP"):
         return cast(str, request.headers.get("CF-Connecting-IP"))
     elif request.headers.getlist("X-Forwarded-For"):
-        return cast(str, request.headers.getlist("X-Forwarded-For")[0])
+        return request.headers.getlist("X-Forwarded-For")[0]
     else:
         return cast(str, request.remote_addr)
 
@@ -466,7 +504,7 @@ class TokenManager:
             raise ValueError("Account or email must be provided")
 
         account_id = account.id if account else None
-        account_email = account.email if account else email
+        account_email = email if email is not None else account.email if account else None
 
         if account_id:
             old_token = cls._get_current_token_for_account(account_id, token_type)
@@ -508,8 +546,7 @@ class TokenManager:
         if token_data_json is None:
             logger.warning("%s token %s not found with key %s", token_type, token, key)
             return None
-        token_data = dict(_token_data_adapter.validate_json(token_data_json))
-        return token_data
+        return dict(_token_data_adapter.validate_json(token_data_json))
 
     @classmethod
     def _get_current_token_for_account(cls, account_id: str, token_type: str) -> str | None:
@@ -580,3 +617,18 @@ class RateLimiter:
 
         self._redis_client.zadd(key, {member: current_time})
         self._redis_client.expire(key, self.time_window * 2)
+
+    def seconds_until_available(self, email: str) -> int:
+        """Seconds until the oldest in-window entry expires, freeing a slot.
+
+        Defensive floor of 1 second. Caller should only invoke this after
+        is_rate_limited() returned True.
+        """
+        key = self._get_key(email)
+        oldest = cast(Any, self._redis_client).zrange(key, 0, 0, withscores=True)
+        if not oldest:
+            return 1
+        _member, score = oldest[0]
+        free_at = int(score) + self.time_window
+        remaining = free_at - int(time.time())
+        return max(remaining, 1)
