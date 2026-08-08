@@ -256,6 +256,25 @@ class WorkspaceListApi(Resource):
         ).model_dump(mode="json"), HTTPStatus.OK
 
 
+@console_ns.route("/workspaces/current")
+class CurrentWorkspaceApi(Resource):
+    @console_ns.response(HTTPStatus.OK, "Success", console_ns.models[TenantInfoResponse.__name__])
+    @console_ns.response(HTTPStatus.CONFLICT, "Current workspace is archived")
+    @setup_required
+    @login_required
+    @account_initialization_required
+    @with_current_user
+    @with_session(write=False)
+    def get(self, session: Session, current_user: Account):
+        tenant = current_user.current_tenant
+        if not tenant:
+            raise ValueError("No current tenant")
+        if tenant.status == TenantStatus.ARCHIVE:
+            raise CurrentWorkspaceArchivedError()
+
+        return dump_response(TenantInfoResponse, WorkspaceService.get_tenant_info(tenant, session=session)), HTTPStatus.OK
+    post = get
+
 @console_ns.route("/workspaces/current/summary")
 class CurrentWorkspaceSummaryApi(Resource):
     @console_ns.response(
