@@ -50,6 +50,7 @@ from core.plugin.entities.plugin_daemon import (
     PluginListWithoutTotalResponse,
     PluginModelProviderDeclaration,
     PluginModelProviderEntity,
+    PluginModelProviderBinding,
     PluginVerification,
 )
 from core.plugin.impl.asset import PluginAssetManager

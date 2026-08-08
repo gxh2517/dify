@@ -1,3 +1,4 @@
+from enum import StrEnum
 import logging
 from collections.abc import Mapping
 
@@ -9,6 +10,7 @@ from enums.deployment_edition import DeploymentEdition
 from enums.hosted_provider import HostedTrialProvider
 from services.billing_service import BillingInfo, BillingService
 from services.enterprise.enterprise_service import EnterpriseService
+from services.entities import feature_entities
 
 
 class FeatureResponseModel(BaseModel):
