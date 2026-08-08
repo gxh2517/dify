@@ -9,7 +9,130 @@ from enums.deployment_edition import DeploymentEdition
 from enums.hosted_provider import HostedTrialProvider
 from services.billing_service import BillingInfo, BillingService
 from services.enterprise.enterprise_service import EnterpriseService
-from services.entities import feature_entities
+
+
+class FeatureResponseModel(BaseModel):
+    model_config = ConfigDict(json_schema_serialization_defaults_required=True, protected_namespaces=())
+
+
+class SubscriptionModel(FeatureResponseModel):
+    plan: str = CloudPlan.SANDBOX
+    interval: str = ""
+
+
+class BillingModel(FeatureResponseModel):
+    enabled: bool = False
+    subscription: SubscriptionModel = SubscriptionModel()
+
+
+class EducationModel(FeatureResponseModel):
+    enabled: bool = False
+    activated: bool = False
+
+
+class LimitationModel(FeatureResponseModel):
+    size: int = 0
+    limit: int = 0
+
+
+class VectorSpaceLimitationModel(LimitationModel):
+    model_config = ConfigDict(json_schema_serialization_defaults_required=False, protected_namespaces=())
+
+    size: int
+    limit: int
+    usage_unknown: bool = Field(default=False, exclude_if=lambda value: not value)
+
+
+class LicenseLimitationModel(FeatureResponseModel):
+    """
+    - enabled: whether this limit is enforced
+    - size: current usage count
+    - limit: maximum allowed count; 0 means unlimited
+    """
+
+    enabled: bool = Field(False, description="Whether this limit is currently active")
+    size: int = Field(0, description="Number of resources already consumed")
+    limit: int = Field(0, description="Maximum number of resources allowed; 0 means no limit")
+
+    def is_available(self, required: int = 1) -> bool:
+        """
+        Determine whether the requested amount can be allocated.
+
+        Returns True if:
+         - this limit is not active, or
+         - the limit is zero (unlimited), or
+         - there is enough remaining quota.
+        """
+        if not self.enabled or self.limit == 0:
+            return True
+
+        return (self.limit - self.size) >= required
+
+
+class Quota(FeatureResponseModel):
+    usage: int = 0
+    limit: int = 0
+    reset_date: int = -1
+
+
+class LicenseStatus(StrEnum):
+    NONE = "none"
+    INACTIVE = "inactive"
+    ACTIVE = "active"
+    EXPIRING = "expiring"
+    EXPIRED = "expired"
+    LOST = "lost"
+
+
+class LicenseStatusModel(FeatureResponseModel):
+    status: LicenseStatus = LicenseStatus.NONE
+
+
+class LicenseModel(LicenseStatusModel):
+    expired_at: str = ""
+    workspaces: LicenseLimitationModel = LicenseLimitationModel(enabled=False, size=0, limit=0)
+    seats: LicenseLimitationModel = LicenseLimitationModel(enabled=False, size=0, limit=0)
+
+
+class BrandingModel(FeatureResponseModel):
+    enabled: bool = False
+    application_title: str = ""
+    login_page_logo: str = ""
+    workspace_logo: str = ""
+    favicon: str = ""
+
+
+class WebAppAuthSSOModel(FeatureResponseModel):
+    protocol: str = ""
+
+
+class WebAppAuthModel(FeatureResponseModel):
+    enabled: bool = False
+    allow_sso: bool = False
+    sso_config: WebAppAuthSSOModel = WebAppAuthSSOModel()
+    allow_email_code_login: bool = False
+    allow_email_password_login: bool = False
+    allow_public_access: bool = True
+
+
+class KnowledgePipeline(FeatureResponseModel):
+    publish_enabled: bool = False
+
+
+class PluginInstallationScope(StrEnum):
+    NONE = "none"
+    OFFICIAL_ONLY = "official_only"
+    OFFICIAL_AND_SPECIFIC_PARTNERS = "official_and_specific_partners"
+    ALL = "all"
+
+
+class PluginInstallationPermissionModel(FeatureResponseModel):
+    # Plugin installation scope – possible values:
+    #   none: prohibit all plugin installations
+    #   official_only: allow only Dify official plugins
+    #   official_and_specific_partners: allow official and specific partner plugins
+    #   all: allow installation of all plugins
+    plugin_installation_scope: PluginInstallationScope = PluginInstallationScope.ALL
 
 logger = logging.getLogger(__name__)
 
@@ -50,8 +173,8 @@ class FeatureService:
         return features
 
     @classmethod
-    def get_vector_space(cls, tenant_id: str) -> feature_entities.VectorSpaceLimitationModel:
-        vector_space = feature_entities.VectorSpaceLimitationModel(size=0, limit=5)
+    def get_vector_space(cls, tenant_id: str) -> VectorSpaceLimitationModel:
+        vector_space = VectorSpaceLimitationModel(size=0, limit=5)
         if dify_config.BILLING_ENABLED and tenant_id:
             billing_vector_space = BillingService.get_vector_space(tenant_id)
             # NOTE: billing API returns vector_space.size as float (e.g. 0.0),
@@ -71,6 +194,21 @@ class FeatureService:
             knowledge_rate_limit.limit = limit_info.get("limit", 10)
             knowledge_rate_limit.subscription_plan = limit_info.get("subscription_plan", CloudPlan.SANDBOX)
         return knowledge_rate_limit
+
+    @classmethod
+    def get_knowledge_file_size_limit(cls, tenant_id: str | None) -> int:
+        default_limit = dify_config.UPLOAD_FILE_SIZE_LIMIT
+        if not dify_config.BILLING_ENABLED or not tenant_id:
+            return default_limit
+
+        billing_info = BillingService.get_info(tenant_id, exclude_vector_space=True)
+        if billing_info["enabled"] and billing_info["subscription"]["plan"] in (
+            CloudPlan.PROFESSIONAL,
+            CloudPlan.TEAM,
+        ):
+            return max(default_limit, dify_config.KNOWLEDGE_UPLOAD_FILE_SIZE_LIMIT_FOR_PAID_PLAN)
+
+        return default_limit
 
     @classmethod
     def get_knowledge_file_size_limit(cls, tenant_id: str | None) -> int:

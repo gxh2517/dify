@@ -48,7 +48,6 @@ from core.plugin.entities.plugin_daemon import (
     PluginInstallTaskStatus,
     PluginListResponse,
     PluginListWithoutTotalResponse,
-    PluginModelProviderBinding,
     PluginModelProviderDeclaration,
     PluginModelProviderEntity,
     PluginVerification,

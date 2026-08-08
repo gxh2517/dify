@@ -2,8 +2,7 @@ from typing import cast
 from unittest.mock import patch
 
 from services.billing_service import BillingInfo
-from services.entities.feature_entities import LimitationModel
-from services.feature_service import FeatureService
+from services.feature_service import FeatureService, LimitationModel
 
 
 def test_get_features_exclude_vector_space_sets_vector_space_to_none():

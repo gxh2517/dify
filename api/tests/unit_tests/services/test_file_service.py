@@ -252,6 +252,16 @@ class TestFileService:
                 is False
             )
 
+            # Media-specific limits are not affected by the knowledge document override.
+            assert (
+                FileService.is_file_size_within_limit(
+                    extension="jpg",
+                    file_size=11 * 1024 * 1024,
+                    default_file_size_limit=100,
+                )
+                is False
+            )
+
     def test_get_file_base64_success(self, file_service: FileService, db_session: Session):
         self._persist_upload_file(db_session, key="test_key")
 

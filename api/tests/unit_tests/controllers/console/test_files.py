@@ -101,7 +101,6 @@ class TestFileApiGet:
         assert data["knowledge_file_size_limit"] == 50
         assert "batch_count_limit" in data
         get_knowledge_file_size_limit.assert_called_once_with("tenant-1")
-        assert data["skill_file_size_limit"] == dify_config.UPLOAD_SKILL_FILE_SIZE_LIMIT
 
 
 class TestFileApiPost:

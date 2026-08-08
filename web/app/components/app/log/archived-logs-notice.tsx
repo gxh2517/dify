@@ -54,7 +54,11 @@ export function ArchivedLogsNotice() {
         <Button
           variant="primary"
           className="shrink-0"
-          onClick={() => setSettingsDestination('workflow-log-archives')}
+          onClick={() =>
+            setShowAccountSettingModal({
+              payload: ACCOUNT_SETTING_TAB.WORKFLOW_LOG_ARCHIVES,
+            })
+          }
         >
           {t(($) => $['archives.notice.action'], { ns: 'appLog' })}
         </Button>

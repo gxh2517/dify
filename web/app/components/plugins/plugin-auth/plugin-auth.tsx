@@ -8,6 +8,7 @@ import {
   settingsQueryParser,
 } from '@/app/components/header/account-setting/query-params'
 import { useCredentialPermissions } from '@/hooks/use-credential-permissions'
+import { useCredentialPermissions } from '@/hooks/use-credential-permissions'
 import Authorize from './authorize'
 import Authorized from './authorized'
 import { usePluginAuth } from './hooks/use-plugin-auth'
@@ -21,6 +22,7 @@ type PluginAuthProps = {
 const PluginAuth = ({ pluginPayload, children, className }: PluginAuthProps) => {
   const { t } = useTranslation()
   const [, setSettingsDestination] = useQueryState(settingsQueryParamName, settingsQueryParser)
+  const { canCreateCredential } = useCredentialPermissions()
   const { canCreateCredential } = useCredentialPermissions()
   const {
     isAuthorized,

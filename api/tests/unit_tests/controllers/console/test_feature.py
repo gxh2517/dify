@@ -101,6 +101,24 @@ class TestFeatureVectorSpaceApi:
         assert schema["properties"]["usage_unknown"]["type"] == "boolean"
         assert "usage_unknown" not in schema["required"]
 
+    def test_get_vector_space_preserves_unknown_usage(self, mocker: MockerFixture):
+        from controllers.console.feature import FeatureVectorSpaceApi
+
+        get_vector_space = mocker.patch("controllers.console.feature.FeatureService.get_vector_space")
+        get_vector_space.return_value = VectorSpaceLimitationModel(size=0, limit=50, usage_unknown=True)
+
+        result = unwrap(FeatureVectorSpaceApi.get)(FeatureVectorSpaceApi(), "tenant_123")
+
+        assert result == {"size": 0, "limit": 50, "usage_unknown": True}
+        get_vector_space.assert_called_once_with("tenant_123")
+
+    def test_vector_space_response_schema_marks_usage_unknown_optional(self):
+        schema = VectorSpaceLimitationModel.model_json_schema(mode="serialization")
+
+        assert schema["required"] == ["size", "limit"]
+        assert schema["properties"]["usage_unknown"]["type"] == "boolean"
+        assert "usage_unknown" not in schema["required"]
+
 
 class TestTrialModelsApi:
     def test_get_trial_models_success(self, mocker: MockerFixture):

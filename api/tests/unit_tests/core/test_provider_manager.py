@@ -1,9 +1,9 @@
-from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 from unittest.mock import MagicMock, Mock, PropertyMock, call, patch
 
 import pytest
+from flask import has_app_context
 from flask import has_app_context
 from sqlalchemy import Engine, event, select
 from sqlalchemy.orm import Session, sessionmaker
@@ -22,7 +22,6 @@ from core.provider_manager import ProviderConfigurationCacheSource, ProviderMana
 from graphon.model_runtime.entities.common_entities import I18nObject
 from graphon.model_runtime.entities.model_entities import ModelType
 from graphon.model_runtime.entities.provider_entities import ConfigurateMethod
-from models.base import TypeBase
 from models.provider import (
     LoadBalancingModelConfig,
     Provider,
@@ -80,6 +79,39 @@ def provider_db(sqlite_engine: Engine, monkeypatch: pytest.MonkeyPatch) -> Itera
         monkeypatch.setattr(provider_manager_module.db, "session", request_session)
         monkeypatch.setattr(provider_manager_module.session_factory, "create_session", owned_session_factory)
         yield request_session
+
+
+def _build_plugin_provider_declaration(
+    installation_source: PluginInstallationSource | None,
+) -> PluginModelProviderDeclaration:
+    return PluginModelProviderDeclaration(
+        provider="langgenius/openai/openai",
+        plugin_unique_identifier="langgenius/openai:1.0.0@checksum",
+        installation_source=installation_source,
+        label=I18nObject(en_US="OpenAI"),
+        supported_model_types=[ModelType.LLM],
+        configurate_methods=[ConfigurateMethod.PREDEFINED_MODEL],
+    )
+
+
+def _build_hosting_provider() -> HostingProvider:
+    return HostingProvider(
+        enabled=True,
+        credentials={"api_key": "system-secret"},
+        quotas=[TrialHostingQuota(quota_limit=100)],
+    )
+
+
+def _build_trial_provider_record() -> Provider:
+    return Provider(
+        tenant_id="tenant-id",
+        provider_name="openai",
+        provider_type=ProviderType.SYSTEM,
+        quota_type=ProviderQuotaType.TRIAL,
+        quota_limit=100,
+        quota_used=0,
+        is_valid=True,
+    )
 
 
 def _build_plugin_provider_declaration(
@@ -234,10 +266,11 @@ def test__to_model_settings(mock_provider_entity, provider_db: Session):
     ],
 )
 def test_to_system_configuration_rejects_non_marketplace_provider(
+    mocker: MockerFixture,
     installation_source: PluginInstallationSource | None,
 ) -> None:
     provider_entity = _build_plugin_provider_declaration(installation_source)
-    manager = _build_provider_manager()
+    manager = _build_provider_manager(mocker)
 
     with (
         patch.object(manager, "_choice_current_using_quota_type") as choose_quota,
@@ -253,9 +286,9 @@ def test_to_system_configuration_rejects_non_marketplace_provider(
     choose_quota.assert_not_called()
 
 
-def test_to_system_configuration_rejects_unverified_marketplace_provider() -> None:
+def test_to_system_configuration_rejects_unverified_marketplace_provider(mocker: MockerFixture) -> None:
     provider_entity = _build_plugin_provider_declaration(PluginInstallationSource.Marketplace)
-    manager = _build_provider_manager()
+    manager = _build_provider_manager(mocker)
 
     with (
         patch.object(manager, "_choice_current_using_quota_type") as choose_quota,
@@ -276,9 +309,11 @@ def test_to_system_configuration_rejects_unverified_marketplace_provider() -> No
     choose_quota.assert_not_called()
 
 
-def test_to_system_configuration_never_returns_hosting_credentials_for_package_with_valid_quota() -> None:
+def test_to_system_configuration_never_returns_hosting_credentials_for_package_with_valid_quota(
+    mocker: MockerFixture,
+) -> None:
     provider_entity = _build_plugin_provider_declaration(PluginInstallationSource.Package)
-    manager = _build_provider_manager()
+    manager = _build_provider_manager(mocker)
 
     with patch(
         "core.provider_manager.ext_hosting_provider.hosting_configuration.provider_map",
@@ -294,9 +329,9 @@ def test_to_system_configuration_never_returns_hosting_credentials_for_package_w
     assert configuration.credentials is None
 
 
-def test_to_system_configuration_uses_owned_session_for_cloud_credit_pools() -> None:
+def test_to_system_configuration_uses_owned_session_for_cloud_credit_pools(mocker: MockerFixture) -> None:
     provider_entity = _build_plugin_provider_declaration(PluginInstallationSource.Marketplace)
-    manager = _build_provider_manager()
+    manager = _build_provider_manager(mocker)
     owned_session = Mock()
     session_context = MagicMock()
     session_context.__enter__.return_value = owned_session
@@ -341,9 +376,9 @@ def test_to_system_configuration_uses_owned_session_for_cloud_credit_pools() -> 
     session_context.__exit__.assert_called_once_with(None, None, None)
 
 
-def test_to_system_configuration_preserves_marketplace_behavior() -> None:
+def test_to_system_configuration_preserves_marketplace_behavior(mocker: MockerFixture) -> None:
     provider_entity = _build_plugin_provider_declaration(PluginInstallationSource.Marketplace)
-    manager = _build_provider_manager()
+    manager = _build_provider_manager(mocker)
 
     with (
         patch(
@@ -367,9 +402,9 @@ def test_to_system_configuration_preserves_marketplace_behavior() -> None:
     is_plugin_verified.assert_called_once_with("tenant-id", provider_entity.plugin_unique_identifier)
 
 
-def test_package_provider_keeps_custom_configuration() -> None:
+def test_package_provider_keeps_custom_configuration(mocker: MockerFixture) -> None:
     provider_entity = _build_plugin_provider_declaration(PluginInstallationSource.Package)
-    manager = _build_provider_manager()
+    manager = _build_provider_manager(mocker)
     provider_factory = Mock()
     provider_factory.get_providers.return_value = [provider_entity]
     custom_configuration = CustomConfiguration(
@@ -405,7 +440,7 @@ def test_package_provider_keeps_custom_configuration() -> None:
     assert configuration.custom_configuration.provider.credentials == {"api_key": "user-secret"}
 
 
-def test__to_model_settings_only_one_lb(mock_provider_entity, provider_db: Session):
+def test__to_model_settings_only_one_lb(mocker: MockerFixture, mock_provider_entity):
     # Mocking the inputs
 
     ps = ProviderModelSetting(

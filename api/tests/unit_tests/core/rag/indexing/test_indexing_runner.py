@@ -1113,6 +1113,31 @@ class TestIndexingRunnerRun:
         admission_service = Mock()
         admission_service.ensure_document_can_be_indexed.side_effect = admission_error
 
+    def test_run_rejects_before_segment_or_vector_writes(
+        self, mock_dependencies, sample_dataset_documents
+    ):
+        runner = IndexingRunner(enforce_vector_space_admission=True)
+        dataset_document = sample_dataset_documents[0]
+        dataset_document.need_summary = False
+        dataset = Mock(spec=Dataset)
+        dataset.id = dataset_document.dataset_id
+        dataset.tenant_id = dataset_document.tenant_id
+        dataset.indexing_technique = IndexTechniqueType.HIGH_QUALITY
+        current_user = Mock(spec=Account)
+        model_dispatch = {
+            DatasetDocument: dataset_document,
+            Dataset: dataset,
+            Account: current_user,
+        }
+        mock_dependencies["session"].get.side_effect = lambda model, _: model_dispatch.get(model)
+        process_rule = Mock(spec=DatasetProcessRule)
+        process_rule.to_dict.return_value = {"mode": "automatic", "rules": {}}
+        mock_dependencies["session"].scalar.return_value = process_rule
+        transformed_documents = [Document(page_content="Chunk", metadata={"doc_id": "c1", "doc_hash": "h1"})]
+        admission_error = VectorSpaceAdmissionError("estimated storage exceeds capacity")
+        admission_service = Mock()
+        admission_service.ensure_document_can_be_indexed.side_effect = admission_error
+
         with (
             patch("core.indexing_runner.VectorSpaceAdmissionService", return_value=admission_service),
             patch.object(runner, "_extract", return_value=[Document(page_content="source", metadata={})]),
@@ -1138,13 +1163,11 @@ class TestIndexingRunnerRun:
             session=mock_dependencies["session"],
         )
         handle_error.assert_called_once_with(dataset_document.id, admission_error, mock_dependencies["session"])
-        set_tenant_id.assert_called_once_with(
-            current_user,
+        current_user.set_tenant_id_with_session.assert_called_once_with(
             dataset.tenant_id,
             session=mock_dependencies["session"],
         )
 
-    @patch.object(Account, "set_tenant_id_with_session", autospec=True)
     def test_run_in_splitting_status_counts_each_transformed_document_once(
         self, set_tenant_id, mock_dependencies, sample_dataset_documents
     ):

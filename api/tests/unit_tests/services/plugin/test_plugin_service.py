@@ -17,7 +17,7 @@ from core.plugin.entities.plugin_daemon import (
     PluginModelProviderDeclaration,
     PluginModelProviderEntity,
 )
-from core.provider_manager import ProviderConfigurationCacheSource, ProviderManager
+from core.provider_manager import ProviderManager
 from graphon.model_runtime.entities.common_entities import I18nObject
 from graphon.model_runtime.entities.provider_entities import ConfigurateMethod, ProviderEntity
 from models.provider import Provider, ProviderCredential, ProviderType, TenantPreferredModelProvider
@@ -27,6 +27,16 @@ MODULE = "core.plugin.plugin_service"
 TENANT_ID = "11111111-1111-1111-1111-111111111111"
 OTHER_TENANT_ID = "22222222-2222-2222-2222-222222222222"
 USER_ID = "33333333-3333-3333-3333-333333333333"
+
+
+    def __enter__(self) -> "_FakeSession":
+        return self
+
+    def __exit__(self, exc_type, exc, traceback) -> None:
+        return None
+
+    def begin(self) -> "_FakeSession":
+        return self
 
 
 def _build_provider_entity(
